@@ -1,0 +1,23 @@
+bundle:
+  name: sales_lakehouse
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog for this environment
+    default: dev
+  notification_email:
+    default: data-team@example.com
+
+targets:
+  dev:
+    mode: development
+    default: true
+    variables:
+      catalog: dev
+  prod:
+    mode: production
+    variables:
+      catalog: prod

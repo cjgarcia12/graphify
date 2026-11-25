@@ -1712,6 +1712,11 @@ def build_from_json(extraction: dict, *, directed: bool = False, root: str | Pat
     # Numeric ids from a loose backend become str before anything keys on them
     # (#2326) — after the links remap so aliased edges are covered too.
     _coerce_non_string_ids(extraction)
+    # Databricks fork: see build(); repeated here because incremental and watch
+    # rebuilds call build_from_json directly.
+    if isinstance(extraction.get("nodes"), list) and isinstance(extraction.get("edges"), list):
+        from graphify.extractors.databricks.resolve import run as _databricks_resolve
+        _databricks_resolve(extraction["nodes"], extraction["edges"], root)
 
     # Canonicalize legacy node/edge schema before validation.
     for node in extraction.get("nodes", []):
@@ -2497,6 +2502,10 @@ def build(
         combined["input_tokens"] += ext.get("input_tokens", 0)
         combined["output_tokens"] += ext.get("output_tokens", 0)
     _root = str(Path(root).resolve()) if root else None
+    # Databricks fork: merge corpus-wide UC tables / bundle entities and resolve
+    # pipeline schemas before dedup picks survivors (idempotent, no-op otherwise).
+    from graphify.extractors.databricks.resolve import run as _databricks_resolve
+    _databricks_resolve(combined["nodes"], combined["edges"], root)
     _dedup_collapsed = 0
     _dedup_remap: dict[str, str] = {}
     if dedup and combined["nodes"]:

@@ -93,6 +93,16 @@ Graphify release that produced it.
 
 ---
 
+## Databricks fork
+
+This fork adds first-class support for Databricks repositories. It reads Asset
+Bundles (jobs, tasks, `depends_on`, pipelines, variables, targets), source-format
+and `.ipynb` notebooks (`%run`, `%sql`, `dbutils.notebook.run`), and Unity Catalog
+table lineage from PySpark, DLT / Lakeflow and Databricks SQL. A table that one
+notebook writes as `${var.catalog}.silver.orders` and another reads as
+`dev.silver.orders` is one node. You can tailor it to your team's wrappers and
+catalog conventions in `.graphifyrc`. See **[docs/databricks.md](docs/databricks.md)**.
+
 ## See it in action
 
 <p align="center">

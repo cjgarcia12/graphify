@@ -281,6 +281,10 @@ def generate(
     for i, node in enumerate(god_node_list, 1):
         lines.append(f"{i}. `{node['label']}` - {node['degree']} edges")
 
+    # Databricks fork: table lineage and job DAGs, only for Databricks corpora.
+    from graphify.extractors.databricks.report_section import lineage_section
+    lines += lineage_section(G)
+
     lines += ["", "## Surprising Connections (you probably didn't know these)"]
     if surprise_list:
         for s in surprise_list:

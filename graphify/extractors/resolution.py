@@ -1116,6 +1116,12 @@ def _node_disambiguation_source_key(node: dict, root: Path) -> str:
         return _source_key(source_file, root)
     return _source_key(str(node.get("origin_file", "")), root)
 
+# Databricks fork: nodes that name one corpus-wide entity (a Unity Catalog
+# table, a bundle job/task/pipeline/variable) are the same thing in every file
+# that mentions them, so like module anchors they merge rather than split.
+from graphify.extractors.databricks.names import MERGEABLE_NODE_TYPES as _MERGEABLE_NODE_TYPES  # noqa: E402
+
+
 def _disambiguate_colliding_node_ids(
     nodes: list[dict],
     edges: list[dict],
@@ -1139,7 +1145,7 @@ def _disambiguate_colliding_node_ids(
         folded = node.pop("_go_folded_files", None)
         if folded:
             folded_files[id(node)] = folded
-        if node.get("type") in ("module", "namespace"):
+        if node.get("type") in ("module", "namespace") or node.get("type") in _MERGEABLE_NODE_TYPES:
             continue
         nid = node.get("id")
         if isinstance(nid, str) and nid:

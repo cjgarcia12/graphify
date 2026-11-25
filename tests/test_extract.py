@@ -483,7 +483,7 @@ def test_extract_does_not_rewire_constructor_method_to_same_named_class(tmp_path
 def test_collect_files_from_dir():
     from graphify.extract import _DISPATCH
     files = collect_files(FIXTURES)
-    supported = set(_DISPATCH.keys())
+    supported = set(_DISPATCH.keys()) | {".ipynb"}  # Databricks fork: notebooks
     assert all(f.suffix in supported for f in files)
     assert len(files) > 0
 
@@ -546,7 +546,7 @@ def test_collect_files_handles_circular_symlinks(requires_symlinks, tmp_path):
 def _legacy_collect_files(target, *, root=None):
     """The pre-#1261 rglob-per-extension implementation, kept as a parity oracle."""
     from graphify.detect import _is_ignored, _is_noise_dir, _load_graphifyignore
-    extensions = set(_DISPATCH.keys())
+    extensions = set(_DISPATCH.keys()) | {".ipynb"}  # Databricks fork: notebooks
     ignore_root = root if root is not None else target
     patterns = _load_graphifyignore(ignore_root)
     results = []
