@@ -45,7 +45,9 @@ _MANIFEST_PATH = str(out_path("manifest.json"))
 _MTIME_COARSE_S = 2.0
 _MTIME_SUBSECOND_S = 0.05
 
-CODE_EXTENSIONS = {'.py', '.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.ejs', '.ets', '.go', '.rs', '.vb', '.cbl', '.cob', '.cobol', '.cpy', '.java', '.groovy', '.gradle', '.cpp', '.cc', '.cxx', '.c', '.h', '.hpp', '.cu', '.cuh', '.metal', '.rb', '.rake', '.swift', '.kt', '.kts', '.cs', '.scala', '.php', '.lua', '.luau', '.toc', '.zig', '.ps1', '.psm1', '.psd1', '.ex', '.exs', '.m', '.mm', '.ml', '.mli', '.jl', '.vue', '.svelte', '.astro', '.dart', '.v', '.sv', '.svh', '.vh', '.sql', '.r', '.f', '.F', '.f90', '.F90', '.f95', '.F95', '.f03', '.F03', '.f08', '.F08', '.pas', '.pp', '.dpr', '.dpk', '.lpr', '.inc', '.dfm', '.lfm', '.lpk', '.sh', '.bash', '.json', '.yaml', '.yml', '.tf', '.tfvars', '.hcl', '.dm', '.dme', '.dmi', '.dmm', '.dmf', '.sln', '.slnx', '.csproj', '.fsproj', '.vbproj', '.xaml', '.razor', '.cshtml', '.cls', '.trigger', '.lisp', '.cl', '.lsp', '.asd', '.robot', '.resource', '.sol', '.erl', '.hrl', '.escript'}
+CODE_EXTENSIONS = {'.py', '.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs', '.ejs', '.ets', '.go', '.rs', '.vb', '.cbl', '.cob', '.cobol', '.cpy', '.java', '.groovy', '.gradle', '.cpp', '.cc', '.cxx', '.c', '.h', '.hpp', '.cu', '.cuh', '.metal', '.rb', '.rake', '.swift', '.kt', '.kts', '.cs', '.scala', '.php', '.lua', '.luau', '.toc', '.zig', '.ps1', '.psm1', '.psd1', '.ex', '.exs', '.m', '.mm', '.ml', '.mli', '.jl', '.vue', '.svelte', '.astro', '.dart', '.v', '.sv', '.svh', '.vh', '.sql', '.r', '.f', '.F', '.f90', '.F90', '.f95', '.F95', '.f03', '.F03', '.f08', '.F08', '.pas', '.pp', '.dpr', '.dpk', '.lpr', '.inc', '.dfm', '.lfm', '.lpk', '.sh', '.bash', '.json', '.yaml', '.yml', '.tf', '.tfvars', '.hcl', '.dm', '.dme', '.dmi', '.dmm', '.dmf', '.sln', '.slnx', '.csproj', '.fsproj', '.vbproj', '.xaml', '.razor', '.cshtml', '.cls', '.trigger', '.lisp', '.cl', '.lsp', '.asd', '.robot', '.resource', '.sol', '.erl', '.hrl', '.escript',
+                   # Databricks fork: Jupyter/Databricks notebooks (extractors/databricks/notebook.py)
+                   '.ipynb'}
 DOC_EXTENSIONS = {'.md', '.mdx', '.qmd', '.skill', '.txt', '.rst', '.html', '.j2', '.jinja', '.jinja2'}
 PAPER_EXTENSIONS = {'.pdf'}
 IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'}
@@ -947,6 +949,10 @@ def count_words(path: Path) -> int:
             return len(docx_to_markdown(path).split())
         if ext == ".xlsx":
             return len(xlsx_to_markdown(path).split())
+        if ext == ".ipynb":
+            # Databricks fork: count cell sources only; outputs can be MBs of
+            # base64 images and are never part of the notebook's text.
+            return _ipynb_word_count(path)
         # Only regular files may be opened. A repository can contain named
         # pipes, sockets and device nodes, and `clone <github-url>` exists to
         # point the scan at trees the operator did not write. open() on a FIFO
@@ -960,6 +966,27 @@ def count_words(path: Path) -> int:
             return len(f.read().split())
     except Exception:
         return 0
+
+
+def _ipynb_word_count(path: Path) -> int:
+    """Words in a notebook's cell sources (outputs ignored); 0 if unreadable."""
+    import json as _json
+    if not stat.S_ISREG(os.stat(_os_path(path)).st_mode):
+        return 0
+    try:
+        with open(_os_path(path), encoding="utf-8", errors="ignore") as f:
+            data = _json.load(f)
+    except (ValueError, OSError):
+        return 0
+    cells = data.get("cells") if isinstance(data, dict) else None
+    total = 0
+    for cell in cells if isinstance(cells, list) else ():
+        src = cell.get("source") if isinstance(cell, dict) else None
+        if isinstance(src, list):
+            src = "".join(s for s in src if isinstance(s, str))
+        if isinstance(src, str):
+            total += len(src.split())
+    return total
 
 
 def _is_regular_file(path: Path) -> bool:
@@ -987,6 +1014,7 @@ _SKIP_DIRS = {
     ".pytest_cache", ".mypy_cache", ".ruff_cache",
     ".tox", ".nox", ".eggs", "*.egg-info",  # nox is tox's successor, same .nox/ venv shape (#1804)
     "graphify-out",  # never treat the default output as source input (#524)
+    ".ipynb_checkpoints",  # Databricks fork: Jupyter autosave copies of notebooks
     # Coverage/test-artefact dirs — generated, never architecturally meaningful
     "lcov-report",                          # Vitest/Istanbul/nyc HTML reports (#870);
                                             # bare "coverage" is gated on report

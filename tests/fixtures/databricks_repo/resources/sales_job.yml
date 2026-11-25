@@ -1,0 +1,29 @@
+resources:
+  jobs:
+    sales_daily:
+      name: sales-daily-${bundle.target}
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+      tasks:
+        - task_key: ingest_orders
+          notebook_task:
+            notebook_path: ../src/bronze/ingest_orders
+            base_parameters:
+              catalog: ${var.catalog}
+        - task_key: refresh_silver
+          depends_on:
+            - task_key: ingest_orders
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.sales_silver.id}
+        - task_key: build_gold
+          depends_on:
+            - task_key: refresh_silver
+          notebook_task:
+            notebook_path: ../src/gold/daily_revenue.ipynb
+        - task_key: publish_metrics
+          depends_on:
+            - task_key: build_gold
+          python_wheel_task:
+            package_name: sales_lib
+            entry_point: publish
