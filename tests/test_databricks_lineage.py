@@ -9,6 +9,7 @@ import pytest
 from graphify.extractors.databricks import lineage
 from graphify.extractors.databricks.config import DatabricksConfig, set_config_override
 from graphify.extractors.databricks.lineage import scan_python, scan_sql
+from graphify.extractors.databricks.names import table_node_id
 
 DEFAULT = DatabricksConfig()
 
@@ -413,8 +414,8 @@ def test_extract_sql_folds_core_tables_onto_uc_tables(tmp_path):
     ids = {n["id"] for n in result["nodes"]}
     assert all(e["source"] in ids or e["target"] in ids for e in result["edges"])
     rels = {(e["relation"], e["target"]) for e in result["edges"]}
-    assert ("writes_to", "uc_table_gold_agg") in rels
-    assert ("reads_from", "uc_table_silver_orders") in rels
+    assert ("writes_to", table_node_id("gold.agg")) in rels
+    assert ("reads_from", table_node_id("silver.orders")) in rels
 
 
 def test_end_to_end_one_table_node_across_files(tmp_path):

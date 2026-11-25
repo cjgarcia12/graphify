@@ -10,6 +10,7 @@ pytest.importorskip("yaml")
 
 from graphify.extractors.base import set_active_scan_root  # noqa: E402
 from graphify.extractors.databricks import bundle  # noqa: E402
+from graphify.extractors.databricks.names import uc_node_id  # noqa: E402
 from graphify.ids import make_id  # noqa: E402
 
 
@@ -251,7 +252,7 @@ def test_pipelines_file(repo: Path):
         _fid(repo / "src/dlt/nested/silver.sql"),
         _fid(repo / "src/dlt_extra.ipynb"),
     }
-    snid = make_id("uc_schema", "silver")
+    snid = uc_node_id("uc_schema", "silver")
     assert nodes[snid]["type"] == "uc_schema" and nodes[snid]["uc_catalogs"] == ["{catalog}"]
     assert (pnid, snid) in _edges(res, "references")
 

@@ -161,8 +161,23 @@ def table_key(tn: TableName, *, keep_catalog: bool = False) -> str:
     return ".".join(p for p in parts if p)
 
 
+def uc_node_id(kind: str, key: str) -> str:
+    """Collision-safe id for a Unity Catalog entity (table, schema, volume).
+
+    ``make_id`` folds ``.`` and ``_`` together, so ``a_b.c`` and ``a.b_c`` (or
+    ``silver.orders`` and ``silver._orders``) would share an id. These nodes are
+    exempt from per-file disambiguation, so a collision would silently merge
+    unrelated tables. A short digest of the exact canonical key keeps distinct
+    keys apart while the readable prefix stays greppable.
+    """
+    import hashlib
+
+    digest = hashlib.sha1(key.encode("utf-8")).hexdigest()[:8]
+    return f"{make_id(kind, key)}_{digest}"
+
+
 def table_node_id(key: str) -> str:
-    return make_id(TABLE_NODE_TYPE, key)
+    return uc_node_id(TABLE_NODE_TYPE, key)
 
 
 def emit_table_refs(

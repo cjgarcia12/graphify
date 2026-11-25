@@ -11812,6 +11812,11 @@ def _extract_single_file(args: tuple) -> tuple[int, dict]:
     path = Path(path_str)
     root = Path(root_str)
     cache_location = Path(cache_location_str)
+    # Databricks fork: a spawn/forkserver worker starts without the parent's
+    # activated root, so routing would use the default databricks config while
+    # the cache salt uses the project's. Activate it before any routing.
+    from graphify.extractors.databricks.config import activate_root as _databricks_activate_root
+    _databricks_activate_root(root)
     _raise_recursion_limit()
     bypass_cache = effective_suffix(path) in _JS_CACHE_BYPASS_SUFFIXES
 

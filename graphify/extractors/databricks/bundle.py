@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from graphify.extractors.base import _make_id, active_scan_root
-from graphify.extractors.databricks.names import normalize_placeholders
+from graphify.extractors.databricks.names import normalize_placeholders, uc_node_id
 from graphify.extractors.databricks.paths import (
     NOTEBOOK_EXTENSIONS,
     file_ref_id,
@@ -282,12 +282,22 @@ def _glob(base: Path, pattern: str) -> list[Path]:
 
 
 def _is_secretish(name: str, value: Any = None) -> bool:
+    """Whether ``name`` or anything inside ``value`` looks like a credential.
+
+    Complex variables (dicts/lists) are walked recursively: an innocuous outer
+    name such as ``connection`` must not smuggle a nested ``client_secret`` key
+    or a token-shaped string into the graph.
+    """
     if _SECRET_NAME_RX.search(str(name)):
         return True
     if isinstance(value, str):
         from graphify.security import redact_secrets
 
         return redact_secrets(value) != value
+    if isinstance(value, dict):
+        return any(_is_secretish(k, v) for k, v in value.items())
+    if isinstance(value, (list, tuple)):
+        return any(_is_secretish("", v) for v in value)
     return False
 
 
@@ -469,7 +479,7 @@ class _BundleExtractor:
                     if isinstance(name, str) and name:
                         norm = normalize_placeholders(name).lower()
                         self.schema_names[key] = norm
-                        self.declared[(kind, key)] = make_id("uc_schema", norm)
+                        self.declared[(kind, key)] = uc_node_id("uc_schema", norm)
                 elif (kind, key) not in self.declared:
                     self.declared[(kind, key)] = _resource_id(kind, key)
 
@@ -835,7 +845,7 @@ class _BundleExtractor:
         if not isinstance(name, str) or not name:
             return
         norm = normalize_placeholders(name).lower()
-        nid = make_id("uc_schema", norm)
+        nid = uc_node_id("uc_schema", norm)
         catalog = spec.get("catalog_name")
         self.out.node(nid, norm, "uc_schema", line, dab_key=key, targets=targets,
                       uc_catalogs=[normalize_placeholders(catalog).lower()] if isinstance(catalog, str) else None)
@@ -850,14 +860,14 @@ class _BundleExtractor:
         if isinstance(schema, str):
             schema_norm = self._schema_name_from_ref(schema) or normalize_placeholders(schema).lower()
         label = ".".join(p for p in (schema_norm, normalize_placeholders(name).lower()) if p)
-        nid = make_id("uc_volume", label)
+        nid = uc_node_id("uc_volume", label)
         catalog = spec.get("catalog_name")
         self.out.node(nid, label, "uc_volume", line, dab_key=key, targets=targets,
                       dab_volume_type=spec.get("volume_type"),
                       uc_catalogs=[normalize_placeholders(catalog).lower()] if isinstance(catalog, str) else None)
         self.declared[("volumes", key)] = nid
         if schema_norm:
-            self.out.edge(nid, make_id("uc_schema", schema_norm), "in_schema", line)
+            self.out.edge(nid, uc_node_id("uc_schema", schema_norm), "in_schema", line)
         self._refs(nid, spec, line, skip=("grants",))
 
 
